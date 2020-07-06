@@ -4,9 +4,13 @@ using ExileCore;
 using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Cache;
+using ExileCore.Shared.Helpers;
+using GameOffsets.Native;
 using SharpDX;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
+using Map = ExileCore.PoEMemory.Elements.Map;
+using RectangleF = SharpDX.RectangleF;
 
 namespace Terrain
 {
@@ -55,7 +59,9 @@ namespace Terrain
 		{
 			if (!Settings.Enable)
 				return;
-			var terrain = GameController.IngameState.Data.Terrain;
+			var data = GameController.IngameState.Data;
+			var terrain = data.M.Read<TerrainData>(data.Address + 0x608);
+
 			var terrainBytes = GameController.Memory.ReadBytes(terrain.Layer1.First, terrain.Layer1.Size);
 			
 			_numCols = (int) terrain.NumCols * 23;
@@ -144,12 +150,12 @@ namespace Terrain
 
 			Vector2 Transform(Vector2 p) => _screenCenterCache + DeltaInWorldToMinimapDelta(p - playerPos, Diag, _scale, -posZ / (9f / mapWindowLargeMapZoom));
 
-			Graphics.DrawTexture(Graphics.LowLevel.GetTexture("terrain").NativePointer,
-				Transform(new Vector2(0, 0)),
-				Transform(new Vector2(_numCols, 0)),
-				Transform(new Vector2(_numCols, _numRows)),
-				Transform(new Vector2(0, _numRows))
-			);
+			Graphics.LowLevel.ImGuiRender.LowLevelApi.AddImageQuad(Graphics.LowLevel.GetTexture("terrain").NativePointer,
+				Transform(new Vector2(0, 0)).ToVector2Num(),
+				Transform(new Vector2(_numCols, 0)).ToVector2Num(),
+				Transform(new Vector2(_numCols, _numRows)).ToVector2Num(),
+				Transform(new Vector2(0, _numRows)).ToVector2Num()
+				);
 		}
 
 		public Vector2 DeltaInWorldToMinimapDelta(Vector2 delta, double diag, float scale, float deltaZ = 0)
@@ -163,6 +169,16 @@ namespace Terrain
 
 			// 2D rotation formulas not correct, but it's what appears to work?
 			return new Vector2((delta.X - delta.Y) * cos, deltaZ - (delta.X + delta.Y) * sin);
+		}
+
+		[StructLayout(LayoutKind.Explicit, Pack = 1)]
+		public struct TerrainData
+		{
+			[FieldOffset(0x18)] public long NumCols;
+			[FieldOffset(0x20)] public long NumRows;
+			[FieldOffset(0xd8)] public NativePtrArray Layer1;
+			[FieldOffset(0xf0)] public NativePtrArray Layer2;
+			[FieldOffset(0x108)] public int BytesPerRow;
 		}
 	}
 }

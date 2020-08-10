@@ -24,6 +24,7 @@ namespace Terrain
 		private Vector2 _screenCenterCache;
 		private int[] _bitmap;
 		private GCHandle _bitmapHandle;
+		private bool _enabled = true;
 
 		public TerrainCore()
 		{
@@ -100,6 +101,13 @@ namespace Terrain
 			Graphics.LowLevel.AddOrUpdateTexture("terrain", srv);
 		}
 
+		public override bool Initialise()
+		{
+			Input.RegisterKey(Settings.HotKey.Value);
+			Settings.HotKey.OnValueChanged += () => { Input.RegisterKey(Settings.HotKey.Value); };
+			return base.Initialise();
+		}
+
 		public override Job Tick()
 		{
 			TickLogic();
@@ -135,7 +143,12 @@ namespace Terrain
 
 		public override void Render()
 		{
-			if (!Settings.Enable || !_largeMap || _ingameStateIngameUi.AtlasPanel.IsVisibleLocal ||
+			if (Settings.HotKey.PressedOnce())
+			{
+				_enabled = !_enabled;
+			}
+
+			if (!_enabled || !Settings.Enable || !_largeMap || _ingameStateIngameUi.AtlasPanel.IsVisibleLocal ||
 			    _ingameStateIngameUi.DelveWindow.IsVisibleLocal ||
 			    _ingameStateIngameUi.TreePanel.IsVisibleLocal)
 				return;
